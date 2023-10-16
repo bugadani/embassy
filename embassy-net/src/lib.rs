@@ -1,6 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "nightly", feature(async_fn_in_trait))]
 #![warn(missing_docs)]
+#![feature(impl_trait_projections)]
 #![doc = include_str!("../README.md")]
 
 #[cfg(not(any(feature = "proto-ipv4", feature = "proto-ipv6")))]
