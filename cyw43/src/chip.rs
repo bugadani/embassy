@@ -165,7 +165,7 @@ pub async fn reset_device_core(bus: &mut impl Bus, chip: impl Chip, core: Core, 
 }
 
 pub async fn chip_specific_socsram_init(bus: &mut impl Bus, chip: impl Chip) -> crate::Result<()> {
-    if matches!(chip.id(), ChipId::C43439) {
+    if matches!(chip.id(), ChipId::C43439 | ChipId::C43430) {
         // this is 4343x specific stuff: Disable remap for SRAM_3
         bus.bp_write32(chip.socsram_base_address() + 0x10, 3).await;
         bus.bp_write32(chip.socsram_base_address() + 0x44, 0).await;

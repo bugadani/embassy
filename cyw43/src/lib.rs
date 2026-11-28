@@ -127,6 +127,7 @@ enum ChipId {
     C43439,
     C4373,
     C43455,
+    C43430,
 }
 
 impl PartialEq<u16> for ChipId {
@@ -136,6 +137,7 @@ impl PartialEq<u16> for ChipId {
             ChipId::C4373 => 4373,
             // It reports itself as a BCM4345 (revision 6): its ChipCommon ID is 0x4345.
             ChipId::C43455 => 0x4345,
+            ChipId::C43430 => 43430,
         }) == *other
     }
 }
@@ -359,6 +361,19 @@ impl SealedChip for Cyw43455 {
         chanspec_ctl_sb_none: 0x0000,
         chanspec_ctl_sb_mask: 0x0700,
     };
+}
+
+/// BCM43430 Wi-Fi + Bluetooth combo chip (ChipCommon ID 43430). Tested as revision 2 (B0,
+/// the CYW43436, with its `brcmfmac43436-sdio` firmware) on a Raspberry Pi Zero 2 W.
+///
+/// Laid out like the CYW43439: the same core addresses in its EROM, and 512 KiB of SOCSRAM
+/// (four 128 KiB banks).
+#[derive(Clone, Copy, Debug)]
+pub struct Cyw43430;
+
+impl SealedChip for Cyw43430 {
+    const ID: ChipId = ChipId::C43430;
+    const INFO: ChipInfo = Cyw43439::INFO;
 }
 
 /// Driver state.
@@ -637,6 +652,42 @@ where
         ch_runner,
         SdioBus::new(sdio, freq),
         Cyw43455,
+        &state.ioctl_state,
+        &state.net.events,
+        &state.net.secure_network,
+        #[cfg(feature = "bluetooth")]
+        None,
+    );
+
+    runner.init(firmware, nvram, None).await?;
+    let control = Control::new(
+        state_ch,
+        &state.net.events,
+        &state.ioctl_state,
+        &state.net.secure_network,
+    );
+
+    Ok((device, control, runner))
+}
+
+/// Create a new instance of the BCM43430 SDIO driver, returning an error on init failure.
+pub async fn new_43430_sdio<'a, SDIO>(
+    state: &'a mut State,
+    sdio: SDIO,
+    firmware: &Aligned<A4, [u8]>,
+    nvram: &Aligned<A4, [u8]>,
+    freq: u32,
+) -> Result<(NetDriver<'a>, Control<'a>, Runner<'a, SdioBus<SDIO>, Cyw43430>)>
+where
+    SDIO: ::sdio::MmcBus,
+{
+    let (ch_runner, device) = ch::new(&mut state.net.ch, ch::driver::HardwareAddress::Ethernet([0; 6]), MTU);
+    let state_ch = ch_runner.state_runner();
+
+    let mut runner = Runner::new(
+        ch_runner,
+        SdioBus::new(sdio, freq),
+        Cyw43430,
         &state.ioctl_state,
         &state.net.events,
         &state.net.secure_network,
