@@ -53,6 +53,10 @@ check --features test-utils
 check --features device,host,class-all,defmt,block-device-driver
 check --features device,host,class-all,log,block-device-driver
 
+# USB 3.x support is opt-in; make sure it still builds alongside a device class.
+check --features device,class-cdc-acm,superspeed
+check --features device,host,class-all,superspeed,defmt
+
 # Cross-check the two smallest relevant targets when they are installed.
 if rustup target list --installed 2>/dev/null | grep -qx thumbv6m-none-eabi; then
     printf '==> cargo check --target thumbv6m-none-eabi (device,class-cdc-acm)\n'

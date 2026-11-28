@@ -98,6 +98,13 @@ class-vcp = ["host", "class-cdc-acm"]
 # `ClassError` mapping. Pulled in by the classes that use it.
 embedded-io = ["dep:embedded-io-async"]
 
+# USB 3.x device support: SuperSpeed / SuperSpeedPlus descriptors and the USB 3.x
+# control requests (`SET_SEL`, `SET_ISOCH_DELAY`, U1/U2/LTM). Full- and high-speed
+# devices don't need it and shouldn't pay for it, so it is off by default.
+# Setting `Config::max_speed` to `Super` or `SuperPlus` without this feature
+# panics in `Builder::new`.
+superspeed = []
+
 defmt = ["dep:defmt", "embassy-usb-driver/defmt", "heapless/defmt"]
 log = ["dep:log"]
 block-device-driver = ["dep:block-device-driver"]

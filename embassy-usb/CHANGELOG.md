@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!-- next-header -->
 ## Unreleased - ReleaseDate
 
+- **Breaking:** USB 3.x device support (SuperSpeed/SuperSpeedPlus descriptors, `SET_SEL`, `SET_ISOCH_DELAY` and the U1/U2/LTM requests) now requires the `superspeed` feature. It is off by default, so full- and high-speed builds no longer carry the USB 3.x code (about 900 bytes on a Cortex-M0+ CDC-ACM firmware, more on larger builds). Setting `Config::max_speed` to `Super` or `SuperSpeedPlus` without the feature panics in `Builder::new` with an explicit message.
+- `UsbDevice` now enables and disables the endpoints of a configuration from a `u32` mask instead of a `heapless::Vec` held across `.await`, shrinking its future by ~176 bytes of static RAM.
+
 - **Breaking:** `HID`: `Config` has a new `interface_name` field. When set, the interface gets a string descriptor with this name, like the vendor class. `None` keeps the previous descriptors.
 - **Breaking:** `UAC`: isochronous IN endpoints now require `D::EndpointIn: IsoEndpointIn`.
 - **Breaking:** `UAC`: Endpoints are now returned directly without wrapper structs.

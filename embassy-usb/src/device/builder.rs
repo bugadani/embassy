@@ -295,7 +295,20 @@ impl<'d, D: Driver<'d>> Builder<'d, D> {
             );
         }
 
-        if config.max_speed >= UsbDeviceSpeed::Super {
+        // USB 3.x descriptors and control requests are only compiled in with the
+        // `superspeed` feature. Without it the check below is a constant `false`, so the
+        // SuperSpeed paths are removed at compile time instead of being a runtime branch.
+        #[cfg(not(feature = "superspeed"))]
+        assert!(
+            config.max_speed < UsbDeviceSpeed::Super,
+            "`Config::max_speed` is Super or SuperSpeedPlus, but embassy-usb was built without the `superspeed` feature"
+        );
+        #[cfg(feature = "superspeed")]
+        let superspeed = config.max_speed >= UsbDeviceSpeed::Super;
+        #[cfg(not(feature = "superspeed"))]
+        let superspeed = false;
+
+        if superspeed {
             assert!(
                 config.max_power <= 900,
                 "The maximum allowed value for `max_power` is 900mA at SuperSpeed"
@@ -332,7 +345,7 @@ impl<'d, D: Driver<'d>> Builder<'d, D> {
 
         config_descriptor.configuration(&config);
         bos_descriptor.bos();
-        if config.max_speed >= UsbDeviceSpeed::Super {
+        if superspeed {
             bos_descriptor.superspeed_capabilities(&config);
         }
 
@@ -446,8 +459,11 @@ impl<'d, D: Driver<'d>> Builder<'d, D> {
                 speed: None,
                 suspended: false,
                 remote_wakeup_enabled: false,
+                #[cfg(feature = "superspeed")]
                 u1_enabled: false,
+                #[cfg(feature = "superspeed")]
                 u2_enabled: false,
+                #[cfg(feature = "superspeed")]
                 ltm_enabled: false,
                 self_powered: config.self_powered,
                 address: 0,
