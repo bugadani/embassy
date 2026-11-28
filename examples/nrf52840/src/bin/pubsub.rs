@@ -4,13 +4,13 @@
 use defmt::unwrap;
 use defmt_rtt as _;
 use embassy_executor::Spawner;
-use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::pubsub::{DynSubscriber, PubSubChannel, Subscriber};
 use embassy_time::Timer;
 use panic_probe as _;
 
 /// Create the message bus. It has a queue of 4, supports 3 subscribers and 1 publisher
-static MESSAGE_BUS: PubSubChannel<ThreadModeRawMutex, Message, 4, 3, 1> = PubSubChannel::new();
+static MESSAGE_BUS: PubSubChannel<CriticalSectionRawMutex, Message, 4, 3, 1> = PubSubChannel::new();
 
 #[derive(Clone, defmt::Format)]
 enum Message {
@@ -66,7 +66,7 @@ async fn main(spawner: Spawner) {
 ///
 /// This takes the generic `Subscriber`. This is most performant, but requires you to write down all of the generics
 #[embassy_executor::task]
-async fn fast_logger(mut messages: Subscriber<'static, ThreadModeRawMutex, Message, 4, 3, 1>) {
+async fn fast_logger(mut messages: Subscriber<'static, CriticalSectionRawMutex, Message, 4, 3, 1>) {
     loop {
         let message = messages.next_message().await;
         defmt::info!("Received message at fast logger: {:?}", message);

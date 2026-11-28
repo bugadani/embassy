@@ -7,7 +7,7 @@ use embassy_executor::Spawner;
 use embassy_stm32::mode::Async;
 use embassy_stm32::usart::{Config, Uart, UartRx};
 use embassy_stm32::{bind_interrupts, dma, peripherals, usart};
-use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
 use panic_probe as _;
 
@@ -17,7 +17,7 @@ bind_interrupts!(struct Irqs {
     DMA1_STREAM1 => dma::InterruptHandler<peripherals::DMA1_CH1>;
 });
 
-static CHANNEL: Channel<ThreadModeRawMutex, [u8; 8], 1> = Channel::new();
+static CHANNEL: Channel<CriticalSectionRawMutex, [u8; 8], 1> = Channel::new();
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) -> ! {

@@ -8,11 +8,11 @@ use embassy_nrf::mode::Async;
 use embassy_nrf::peripherals::UARTE0;
 use embassy_nrf::uarte::UarteRx;
 use embassy_nrf::{bind_interrupts, uarte};
-use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
 use panic_probe as _;
 
-static CHANNEL: Channel<ThreadModeRawMutex, [u8; 8], 1> = Channel::new();
+static CHANNEL: Channel<CriticalSectionRawMutex, [u8; 8], 1> = Channel::new();
 
 bind_interrupts!(struct Irqs {
     UARTE0 => uarte::InterruptHandler<UARTE0>;

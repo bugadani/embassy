@@ -13,14 +13,14 @@ use embassy_executor::Spawner;
 use embassy_stm32::i2c::{self, Address, I2c, SlaveAddrConfig, SlaveCommand, SlaveCommandKind};
 use embassy_stm32::time::Hertz;
 use embassy_stm32::{bind_interrupts, dma, peripherals};
-use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Timer};
 use panic_probe as _;
 
 pub const I2C_SLAVE_ADDR: u8 = 0x42;
 pub const BUFFER_SIZE: usize = 8;
-static I2C_BUFFER: Mutex<ThreadModeRawMutex, [u8; BUFFER_SIZE]> = Mutex::new([0; BUFFER_SIZE]);
+static I2C_BUFFER: Mutex<CriticalSectionRawMutex, [u8; BUFFER_SIZE]> = Mutex::new([0; BUFFER_SIZE]);
 
 bind_interrupts!(struct Irqs {
     I2C1_EV => i2c::EventInterruptHandler<peripherals::I2C1>;

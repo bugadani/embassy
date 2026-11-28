@@ -9,7 +9,7 @@ use defmt::*;
 use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_rp::gpio;
-use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::{Channel, Sender};
 use embassy_time::{Duration, Ticker};
 use gpio::{Level, Output};
@@ -18,7 +18,7 @@ use panic_probe as _;
 enum LedState {
     Toggle,
 }
-static CHANNEL: Channel<ThreadModeRawMutex, LedState, 64> = Channel::new();
+static CHANNEL: Channel<CriticalSectionRawMutex, LedState, 64> = Channel::new();
 
 #[embassy_executor::main(executor = "embassy_rp::executor::Executor", entry = "cortex_m_rt::entry")]
 async fn main(spawner: Spawner) {
@@ -42,7 +42,7 @@ async fn main(spawner: Spawner) {
 }
 
 #[embassy_executor::task(pool_size = 2)]
-async fn toggle_led(control: Sender<'static, ThreadModeRawMutex, LedState, 64>, delay: Duration) {
+async fn toggle_led(control: Sender<'static, CriticalSectionRawMutex, LedState, 64>, delay: Duration) {
     let mut ticker = Ticker::every(delay);
     loop {
         control.send(LedState::Toggle).await;

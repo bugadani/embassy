@@ -9,13 +9,13 @@ use defmt::*;
 use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_rp::gpio;
-use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Ticker};
 use gpio::{Level, Output};
 use panic_probe as _;
 
-type LedType = Mutex<ThreadModeRawMutex, Option<Output<'static>>>;
+type LedType = Mutex<CriticalSectionRawMutex, Option<Output<'static>>>;
 static LED: LedType = Mutex::new(None);
 
 #[embassy_executor::main(executor = "embassy_rp::executor::Executor", entry = "cortex_m_rt::entry")]

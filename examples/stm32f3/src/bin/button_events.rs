@@ -16,7 +16,7 @@ use embassy_stm32::exti::{self, ExtiInput};
 use embassy_stm32::gpio::{Level, Output, Pull, Speed};
 use embassy_stm32::mode::Async;
 use embassy_stm32::{bind_interrupts, peripherals};
-use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Timer, with_timeout};
 use panic_probe as _;
@@ -102,7 +102,7 @@ enum ButtonEvent {
     Hold,
 }
 
-static CHANNEL: Channel<ThreadModeRawMutex, ButtonEvent, 4> = Channel::new();
+static CHANNEL: Channel<CriticalSectionRawMutex, ButtonEvent, 4> = Channel::new();
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {

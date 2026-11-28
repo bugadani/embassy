@@ -7,10 +7,8 @@
 //! one receiver is not received by any other.
 //!
 //! This queue takes a Mutex type so that various
-//! targets can be attained. For example, a ThreadModeMutex can be used
-//! for single-core Cortex-M targets where messages are only passed
-//! between tasks running in thread mode. Similarly, a CriticalSectionMutex
-//! can also be used for single-core targets where messages are to be
+//! targets can be attained. For example, a CriticalSectionMutex
+//! can be used for single-core targets where messages are to be
 //! passed from exception mode e.g. out of an interrupt handler.
 //!
 //! This module provides a bounded channel that has a limit on the number of

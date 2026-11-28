@@ -5,7 +5,7 @@ use defmt::unwrap;
 use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_nrf::gpio::{Level, Output, OutputDrive};
-use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::Timer;
 use panic_probe as _;
@@ -15,7 +15,7 @@ enum LedState {
     Off,
 }
 
-static CHANNEL: Channel<ThreadModeRawMutex, LedState, 1> = Channel::new();
+static CHANNEL: Channel<CriticalSectionRawMutex, LedState, 1> = Channel::new();
 
 #[embassy_executor::task]
 async fn my_task() {
