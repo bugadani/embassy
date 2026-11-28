@@ -467,6 +467,7 @@ impl<'a, BUS: Bus, CHIP: Chip> Runner<'a, BUS, CHIP> {
 
         match self.chip.id() {
             ChipId::C43439 => debug!("using cyw43439"),
+            ChipId::C43430 => debug!("using bcm43430"),
             ChipId::C4373 => debug!("using cyw43437"),
             ChipId::C43455 => debug!("using cyw43455"),
         }
@@ -694,7 +695,8 @@ impl<'a, BUS: Bus, CHIP: Chip> Runner<'a, BUS, CHIP> {
         match self.chip.id() {
             // Both have a Cortex-R4, and come up alike.
             ChipId::C4373 | ChipId::C43455 => self.init_cyw4373().await?,
-            ChipId::C43439 => self.init_cyw43439().await?,
+            // The 43430 is the 43439's Cortex-M3 sibling, and comes up alike.
+            ChipId::C43439 | ChipId::C43430 => self.init_cyw43439().await?,
         }
 
         #[cfg(feature = "firmware-logs")]
