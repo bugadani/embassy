@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!-- next-header -->
 ## Unreleased - ReleaseDate
 
-- `ThreadModeMutex` and `ThreadModeRawMutex` have been removed. Use <https://docs.rs/mutex/1.0.2/mutex/raw_impls/single_core_thread_mode/struct.ThreadModeRawMutex.html> or a safer alternative instead.
+- **Breaking:** The `std` feature has been removed. The crate is always `no_std`.
+- **Breaking:** `ThreadModeMutex` and `ThreadModeRawMutex` have been removed. Use <https://docs.rs/mutex/1.0.2/mutex/raw_impls/single_core_thread_mode/struct.ThreadModeRawMutex.html> or a safer alternative instead.
 - `AtomicWaker`: `wake()` releases its state before waking the waker, so a task that registers again from within the wake (an interrupt executor preempting the waking interrupt) is not woken again in a loop.
 - **Breaking:** The blocking `Mutex` is not reentrant: `lock` gives `&mut T`, and locking the mutex again from inside `lock` panics with the raw mutexes of this crate. Raw mutexes implement `ScopedRawMutex` and `ConstInit` from the stable `mutex-traits` 1.x crate, instead of a trait that changes with each embassy-sync release. `lock_mut` and the `borrow` methods are removed: use `lock`, or `critical_section::Mutex` inside a critical section.
 - Add `write_all` as a method to `pipe::Writer`, trait import not strictly necessary anymore.

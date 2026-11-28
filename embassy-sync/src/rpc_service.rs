@@ -905,7 +905,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "std")]
     fn destructor_panic_recovery() {
         // Destructor of return value panics during cleanup after caller was dropped.
         // FinishGuard should recover the service
@@ -946,7 +945,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "std")]
     fn closure_panic_recovery() {
         // The closure panics during execution. Caller is dropped during
         // unwind, should send ack, and the service recovers

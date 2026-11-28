@@ -1,4 +1,4 @@
-#![cfg_attr(not(feature = "std"), no_std)]
+#![no_std]
 #![allow(async_fn_in_trait)]
 #![allow(clippy::new_without_default)]
 #![allow(unsafe_op_in_unsafe_fn)]
