@@ -391,8 +391,11 @@ struct Inner<'d> {
     speed: Option<Speed>,
     suspended: bool,
     remote_wakeup_enabled: bool,
+    #[cfg(feature = "superspeed")]
     u1_enabled: bool,
+    #[cfg(feature = "superspeed")]
     u2_enabled: bool,
+    #[cfg(feature = "superspeed")]
     ltm_enabled: bool,
     self_powered: bool,
 
@@ -440,15 +443,36 @@ async fn set_interface_endpoints(
     interface: InterfaceNumber,
     active: u32,
 ) {
-    let mut eps = heapless::Vec::<(EndpointAddress, bool), 32>::new();
+    // Masks rather than a list of endpoints: this future is polled from the main
+    // control loop, and a `heapless::Vec` would be spilled into its state at every
+    // `.await`. An endpoint referenced by several descriptors of the interface gets
+    // the same `enabled` value each time, so the masks need no ordering.
+    let mut enable = 0u32;
+    let mut disable = 0u32;
     foreach_endpoint(config_descriptor, |ep| {
         if ep.interface == interface {
-            let _ = eps.push((ep.ep_address, active & endpoint_bit(ep.ep_address) != 0));
+            let bit = endpoint_bit(ep.ep_address);
+            if active & bit != 0 {
+                enable |= bit;
+            } else {
+                disable |= bit;
+            }
         }
     })
     .unwrap();
-    for (ep_addr, enabled) in eps {
-        bus.endpoint_set_enabled(ep_addr, enabled).await;
+    set_endpoints(bus, enable, true).await;
+    set_endpoints(bus, disable & !enable, false).await;
+}
+
+/// Enables or disables every endpoint in `mask`.
+///
+/// Only a `u32` is held across the `.await`, not a collection of addresses.
+async fn set_endpoints(bus: &mut impl Bus, mask: u32, enabled: bool) {
+    let mut mask = mask;
+    while mask != 0 {
+        let bit = mask.trailing_zeros();
+        mask &= mask - 1;
+        bus.endpoint_set_enabled(address_of_bit(bit), enabled).await;
     }
 }
 
@@ -520,9 +544,12 @@ impl<'d, D: Driver<'d>> UsbDevice<'d, D> {
             self.inner.speed = None;
             self.inner.suspended = false;
             self.inner.remote_wakeup_enabled = false;
-            self.inner.u1_enabled = false;
-            self.inner.u2_enabled = false;
-            self.inner.ltm_enabled = false;
+            #[cfg(feature = "superspeed")]
+            {
+                self.inner.u1_enabled = false;
+                self.inner.u2_enabled = false;
+                self.inner.ltm_enabled = false;
+            }
 
             for h in &mut self.inner.handlers {
                 h.enabled(false);
@@ -653,6 +680,7 @@ impl<'d, D: Driver<'d>> UsbDevice<'d, D> {
 }
 
 // Offers a U1, U2 or LTM enable change to the handlers. Enabling needs one of them to accept.
+#[cfg(feature = "superspeed")]
 macro_rules! set_link_feature {
     ($self:ident, $name:ident, $enable:expr) => {{
         let enable = $enable;
@@ -779,9 +807,12 @@ impl<'d> Inner<'d> {
                 self.speed = Some(speed);
                 self.suspended = false;
                 self.remote_wakeup_enabled = false;
-                self.u1_enabled = false;
-                self.u2_enabled = false;
-                self.ltm_enabled = false;
+                #[cfg(feature = "superspeed")]
+                {
+                    self.u1_enabled = false;
+                    self.u2_enabled = false;
+                    self.ltm_enabled = false;
+                }
                 self.address = 0;
 
                 for h in &mut self.handlers {
@@ -901,17 +932,19 @@ impl<'d> Inner<'d> {
                         }
                     })
                     .unwrap();
-                    let mut eps_to_enable = heapless::Vec::<(EndpointAddress, bool), 32>::new();
+                    let mut enable = 0u32;
+                    let mut disable = 0u32;
                     foreach_endpoint(self.config_descriptor, |ep| {
-                        let _ = eps_to_enable.push((
-                            ep.ep_address,
-                            active[ep.interface.0 as usize] & endpoint_bit(ep.ep_address) != 0,
-                        ));
+                        let bit = endpoint_bit(ep.ep_address);
+                        if active[ep.interface.0 as usize] & bit != 0 {
+                            enable |= bit;
+                        } else {
+                            disable |= bit;
+                        }
                     })
                     .unwrap();
-                    for (ep_addr, en) in eps_to_enable {
-                        bus.endpoint_set_enabled(ep_addr, en).await;
-                    }
+                    set_endpoints(bus, enable, true).await;
+                    set_endpoints(bus, disable & !enable, false).await;
                     // Halt is cleared after the endpoints are enabled. Drivers are
                     // not required to drop STALL just because an endpoint is enabled.
                     self.clear_enabled_halts(bus, None).await;
@@ -930,14 +963,12 @@ impl<'d> Inner<'d> {
                         self.reset_alt_settings();
 
                         // Disable all endpoints.
-                        let mut eps_to_disable = heapless::Vec::<EndpointAddress, 32>::new();
+                        let mut disable = 0u32;
                         foreach_endpoint(self.config_descriptor, |ep| {
-                            let _ = eps_to_disable.push(ep.ep_address);
+                            disable |= endpoint_bit(ep.ep_address);
                         })
                         .unwrap();
-                        for ep_addr in eps_to_disable {
-                            bus.endpoint_set_enabled(ep_addr, false).await;
-                        }
+                        set_endpoints(bus, disable, false).await;
 
                         // Notify handlers.
                         for h in &mut self.handlers {
@@ -951,6 +982,7 @@ impl<'d> Inner<'d> {
                 (Request::SET_FEATURE, Request::FEATURE_DEVICE_DEBUG_MODE) => {
                     self.handle_control_out_delegated(req, data)
                 }
+                #[cfg(feature = "superspeed")]
                 (Request::SET_SEL, 0)
                     if self.config.max_speed >= UsbDeviceSpeed::Super && req.index == 0 && req.length == 6 =>
                 {
@@ -964,6 +996,7 @@ impl<'d> Inner<'d> {
                     }
                     OutResponse::Accepted
                 }
+                #[cfg(feature = "superspeed")]
                 (Request::SET_ISOCH_DELAY, delay_ns)
                     if self.config.max_speed >= UsbDeviceSpeed::Super && req.index == 0 && req.length == 0 =>
                 {
@@ -972,16 +1005,19 @@ impl<'d> Inner<'d> {
                     }
                     OutResponse::Accepted
                 }
+                #[cfg(feature = "superspeed")]
                 (Request::SET_FEATURE | Request::CLEAR_FEATURE, Request::FEATURE_DEVICE_U1_ENABLE)
                     if self.config.max_speed >= UsbDeviceSpeed::Super =>
                 {
                     set_link_feature!(self, u1_enabled, req.request == Request::SET_FEATURE)
                 }
+                #[cfg(feature = "superspeed")]
                 (Request::SET_FEATURE | Request::CLEAR_FEATURE, Request::FEATURE_DEVICE_U2_ENABLE)
                     if self.config.max_speed >= UsbDeviceSpeed::Super =>
                 {
                     set_link_feature!(self, u2_enabled, req.request == Request::SET_FEATURE)
                 }
+                #[cfg(feature = "superspeed")]
                 (Request::SET_FEATURE | Request::CLEAR_FEATURE, Request::FEATURE_DEVICE_LTM_ENABLE)
                     if self.config.max_speed >= UsbDeviceSpeed::Super && self.config.ltm_capable =>
                 {
@@ -1056,14 +1092,17 @@ impl<'d> Inner<'d> {
                     if self.remote_wakeup_enabled {
                         status |= 0x0002;
                     }
-                    if self.u1_enabled {
-                        status |= 0x0004;
-                    }
-                    if self.u2_enabled {
-                        status |= 0x0008;
-                    }
-                    if self.ltm_enabled {
-                        status |= 0x0010;
+                    #[cfg(feature = "superspeed")]
+                    {
+                        if self.u1_enabled {
+                            status |= 0x0004;
+                        }
+                        if self.u2_enabled {
+                            status |= 0x0008;
+                        }
+                        if self.ltm_enabled {
+                            status |= 0x0010;
+                        }
                     }
                     buf[..2].copy_from_slice(&status.to_le_bytes());
                     InResponse::Accepted(&buf[..2])

@@ -7,14 +7,19 @@ use embassy_futures::block_on;
 use super::*;
 use crate::control::{OutResponse, Recipient};
 use crate::descriptor::{SynchronizationType, UsageType};
-use crate::device::test_utils::{Response, TestBus, TestDriver, TestEndpoint};
-use crate::driver::{Direction, Endpoint, EndpointAllocError, EndpointConfig, EndpointInterval, Speed};
+#[cfg(feature = "superspeed")]
+use crate::device::test_utils::TestEndpoint;
+use crate::device::test_utils::{Response, TestBus, TestDriver};
+#[cfg(feature = "superspeed")]
+use crate::driver::EndpointAllocError;
+use crate::driver::{Direction, Endpoint, EndpointConfig, EndpointInterval, Speed};
 use crate::types::InterfaceNumber;
 
 fn with_device_fullspeed(f: impl FnOnce(&mut UsbDevice<'_, TestDriver>)) {
     with_config(Config::new(0x1234, 0x5678), f)
 }
 
+#[cfg(feature = "superspeed")]
 fn with_device_superspeed(f: impl FnOnce(&mut UsbDevice<'_, TestDriver>)) {
     with_config_burst(superspeed(UsbDeviceSpeed::Super, UsbVersion::ThreeTwo), 15, f)
 }
@@ -1336,6 +1341,7 @@ fn test_other_speed_config_rejected_on_full_speed_or_missing_buffer() {
     ));
 }
 
+#[cfg(feature = "superspeed")]
 #[test]
 fn test_manual_raw_descriptor_opt_out() {
     let mut config_descriptor = [0; 256];
@@ -1380,6 +1386,7 @@ fn test_manual_raw_descriptor_opt_out() {
     assert_eq!(find_interval(desc, 0x81), 99);
 }
 
+#[cfg(feature = "superspeed")]
 fn superspeed(speed: UsbDeviceSpeed, bcd_usb: UsbVersion) -> Config<'static> {
     let mut config = Config::new(0x1234, 0x5678);
     config.max_speed = speed;
@@ -1389,6 +1396,7 @@ fn superspeed(speed: UsbDeviceSpeed, bcd_usb: UsbVersion) -> Config<'static> {
     config
 }
 
+#[cfg(feature = "superspeed")]
 #[test]
 fn test_superspeed_descriptors() {
     // SuperSpeed USB Device Capability
@@ -1461,6 +1469,7 @@ fn test_superspeed_descriptors() {
     });
 }
 
+#[cfg(feature = "superspeed")]
 #[test]
 fn test_superspeed_requests() {
     let qualifier = u16::from(descriptor_type::DEVICE_QUALIFIER) << 8;
@@ -1492,6 +1501,7 @@ fn allocated<'d, D: Driver<'d, Bus = TestBus>, const N: usize>(
 }
 
 /// `max_burst` and `bytes_per_interval` of the configuration the driver allocated each endpoint with.
+#[cfg(feature = "superspeed")]
 fn superspeed_fields<const N: usize>(usb: &UsbDevice<'_, TestDriver>, endpoints: [u8; N]) -> [(u8, u32); N] {
     allocated(usb, endpoints).map(|config| {
         assert_eq!((config.max_streams, config.mult), (0, 0));
@@ -1500,6 +1510,7 @@ fn superspeed_fields<const N: usize>(usb: &UsbDevice<'_, TestDriver>, endpoints:
 }
 
 /// `bMaxBurst` of each SuperSpeed Endpoint Companion descriptor in `desc`, in order.
+#[cfg(feature = "superspeed")]
 fn companion_bursts<const N: usize>(desc: &[u8]) -> [u8; N] {
     let mut bursts = [None; N];
     let mut companions = bursts.iter_mut();
@@ -1514,6 +1525,7 @@ fn companion_bursts<const N: usize>(desc: &[u8]) -> [u8; N] {
     bursts.map(Option::unwrap)
 }
 
+#[cfg(feature = "superspeed")]
 #[test]
 fn test_superspeed_endpoint_config() {
     // Below SuperSpeed there are no companion descriptors and no SuperSpeed fields.
@@ -1559,6 +1571,7 @@ fn test_superspeed_endpoint_config() {
     }
 }
 
+#[cfg(feature = "superspeed")]
 #[test]
 fn test_endpoint_options() {
     let (mut config_descriptor, mut bos_descriptor, mut control_buf) = ([0; 256], [0; 64], [0; 64]);
@@ -1602,6 +1615,7 @@ fn test_endpoint_options() {
     assert_eq!(companion_bursts(usb.inner.config_descriptor), [3, 15, 0, 0, 0]);
 }
 
+#[cfg(feature = "superspeed")]
 #[test]
 fn test_bulk_max_packet_size() {
     let full_32 = || {
@@ -1667,8 +1681,10 @@ fn test_bulk_max_packet_size_high_speed() {
 
 /// Supports bursts of at most 4 packets.
 #[derive(Default)]
+#[cfg(feature = "superspeed")]
 struct BurstLimitDriver(TestDriver);
 
+#[cfg(feature = "superspeed")]
 impl<'d> Driver<'d> for BurstLimitDriver {
     type EndpointOut = TestEndpoint;
     type EndpointIn = TestEndpoint;
@@ -1691,6 +1707,7 @@ impl<'d> Driver<'d> for BurstLimitDriver {
     }
 }
 
+#[cfg(feature = "superspeed")]
 #[test]
 fn test_endpoint_burst_limited_by_driver() {
     // The companion descriptor has the burst the driver allocated the endpoint with.
@@ -1713,18 +1730,21 @@ fn test_endpoint_burst_limited_by_driver() {
     assert_eq!(companion_bursts(usb.inner.config_descriptor), [3, 2]);
 }
 
+#[cfg(feature = "superspeed")]
 #[test]
 #[should_panic(expected = "SuperSpeed USB requires bcd_usb")]
 fn test_superspeed_requires_usb3() {
     with_config(superspeed(UsbDeviceSpeed::Super, UsbVersion::TwoOne), |_| {});
 }
 
+#[cfg(feature = "superspeed")]
 #[test]
 #[should_panic(expected = "SuperSpeedPlus USB requires bcd_usb")]
 fn test_superspeed_plus_requires_usb31() {
     with_config(superspeed(UsbDeviceSpeed::SuperPlus, UsbVersion::Three), |_| {});
 }
 
+#[cfg(feature = "superspeed")]
 #[test]
 #[should_panic(expected = "max_burst")]
 fn test_superspeed_max_burst_limit() {
@@ -1751,6 +1771,7 @@ fn test_endpoint_options_buffers_limit() {
     alt.endpoint_bulk_out(None, options);
 }
 
+#[cfg(feature = "superspeed")]
 #[test]
 #[should_panic(expected = "SuperSpeed USB requires max_packet_size_0 = 9")]
 fn test_superspeed_requires_max_packet_size_0_9() {
@@ -1759,6 +1780,7 @@ fn test_superspeed_requires_max_packet_size_0_9() {
     with_config(config, |_| {});
 }
 
+#[cfg(feature = "superspeed")]
 #[test]
 fn test_superspeed_callbacks() {
     #[derive(Default)]

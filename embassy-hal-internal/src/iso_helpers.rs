@@ -33,6 +33,13 @@ impl IsoOffer {
 /// all subsequent slots align to `frame % interval == phase` until [`reset`](Self::reset).
 ///
 /// A gap of more than one revolution of the frame counter is counted as a single wrap.
+///
+/// TODO(size): this is 56 B, and every HAL embeds one in every `Endpoint`, although only
+/// isochronous IN endpoints use it. On rp2040 a CDC-ACM gadget allocates two endpoints and
+/// so carries 112 B of it for nothing (about 280 B for a five-endpoint HID device). Moving
+/// the schedule out of `Endpoint` into the isochronous-IN wrapper would recover that RAM;
+/// there is no flash cost today, so this is a RAM-only win and would touch every HAL's
+/// `Endpoint` type.
 #[derive(Clone, Debug)]
 pub struct IsoSchedule {
     last_now: Option<u32>,

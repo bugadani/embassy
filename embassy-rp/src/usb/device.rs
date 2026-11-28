@@ -24,6 +24,21 @@ const EP_MEMORY_SIZE: usize = 4096;
 const EP_MEMORY: *mut u8 = pac::USB_DPRAM.as_ptr() as *mut u8;
 const ISO_FRAME_SPAN: u32 = 1 << 11;
 
+// Transfer state, indexed by endpoint number.
+//
+// TODO(size): these three tables land in `.data`, not `.bss`, so they are stored in
+// flash and copied to RAM at startup even though they are only ever written before
+// being read. Measured on rp2040: `EP_IN_XFERS` 388 B, `EP_OUT_XFERS` 452 B,
+// `ISO_IN_STATE` 196 B, i.e. 1,036 B of flash (and the same amount of RAM).
+//
+// The initializers are not all-zero: `Option<InXfer>`/`Option<OutXfer>` are not an
+// all-zero value when empty, and `IsoInState::new()` sets `interval: 1` and
+// `reset: true`. Giving each slot an explicit `bool` tag plus a zeroed
+// `MaybeUninit<T>` payload, and moving the non-zero defaults to the first use, would
+// let all three tables live in `.bss` and recover the full 1,036 B.
+//
+// This touches the ISR transfer state, so it needs a real-device run (enumeration,
+// a bulk echo and an isochronous stream) rather than just a build check.
 static BUS_WAKER: AtomicWaker = AtomicWaker::new();
 static EP_IN_WAKERS: [AtomicWaker; EP_COUNT] = [const { AtomicWaker::new() }; EP_COUNT];
 static EP_OUT_WAKERS: [AtomicWaker; EP_COUNT] = [const { AtomicWaker::new() }; EP_COUNT];
